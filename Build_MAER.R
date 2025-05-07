@@ -342,194 +342,195 @@ ggsave(p, file = paste0(save_path, 'w_GSE262927_wo_doublet_other_lineage.png'), 
 p <- fp_sjcho(so.merged.wo.d, features = c('Top2a', 'Mki67'), ncol = 2, order = T)
 ggsave(p, file = paste0(save_path, 'w_GSE262927_wo_doublet_proliferating.png'), width = 6, height = 3)
 
-### ext.6.e.
+resolution = 1
+so.merged.wo.d <- FindClusters(so.merged.wo.d, resolution = resolution)
+
+### annotate and visualize
+### annotate based on canonical markers
+so <- so.merged.wo.d
+
+so$annotation = as.vector(so$seurat_clusters)
+so$annotation[so$seurat_clusters %in% c(2, 11, 3, 4, 10, 1, 0, 5)] = 'AT2'
+so$annotation[so$seurat_clusters %in% c(9)] = 'AT2.IFN'
+so$annotation[so$seurat_clusters %in% c(12, 13, 15)] = 'AT2.prolif.'
+so$annotation[so$seurat_clusters %in% c(6, 16)] = 'tAT2'
+so$annotation[so$seurat_clusters %in% c(7, 8, 14, 17)] = 'AT1'
+so$tmp1 = NULL
+saveRDS(so, file = paste0(save_path, 'merged_w_GSE262927_full.rds'))
+
+### AT2 : 2, 11, 3, 4, 10, 1, 0, 5
+### interferon.sti.alv.epi : 9
+### cycling.alv.epi : 12, 13, 15
+### tAT2 : 6, 16
+### AT1 : 7, 8, 14, 17
+
+# AT2, interferon.sti.alv.epi, cycling.alv.epi, tAT2, AT1
+so$clusters <- paste0('c', as.vector(so$seurat_clusters))
+so$clusters <- factor(so$clusters, levels = paste0('c', c(c(2, 11, 3, 4, 0, 5, 10, 1), c(9), c(12, 13, 15), c(6, 16), c(7, 8, 14, 17))))
+
+cols_clusters = c('#538dba', '#32869e', '#002c5b', '#846ded', '#22007a', '#0a2466', '#a4dafc', '#8b95ca', '#000000', '#bdfccf', '#163d2e', '#11c195', '#f9e79f', '#b9a708', '#eaa85d', '#b2460c', '#be9464', '#ff7118')
+names(cols_clusters) = levels(so$clusters)
+
+### extd.fig6.x.cluster & dataset
+
+p <- DimPlot(so, group.by = 'clusters', cols = cols_clusters, pt.size = 1) + NoAxes() + NoLegend() + theme(plot.title = element_text(size = 0))
+ggsave(p, filename = paste0(save_path, 'sup1.A.cluster.png'), width = 6, height = 6)
+ggsave(p, filename = paste0(save_path, 'sup1.A.cluster.pdf'), width = 6, height = 6)
+ggplot2pptx(p, 6, 6, paste0(save_path, 'sup1.A.cluster.pptx'))
+
+leg <- get_legend(DimPlot(so, group.by = 'clusters', cols = cols_clusters))
+ggplot2pptx(as_ggplot(leg), 1, 6, paste0(save_path, 'sup1.A.cluster.legend.pptx'))
+
+p <- DimPlot(so, group.by = 'clusters', split.by = 'dataset', ncol = 4, cols = cols_clusters, pt.size = 0.75) + NoAxes() + NoLegend() + theme(plot.title = element_text(size = 0)) & theme(strip.text.x = element_text(size = 0, face = "bold"))
+ggsave(p, filename = paste0(save_path, 'sup1.B.dataset_cluster.png'), width = 14, height = 3.5)
+ggsave(p, filename = paste0(save_path, 'sup1.B.dataset_cluster.pdf'), width = 14, height = 3.5)
+ggplot2pptx(p, 14, 3.5, paste0(save_path, 'sup1.B.dataset_cluster.pptx'))
+
+p <- DimPlot(so, group.by = 'clusters', split.by = 'dataset', ncol = 4, cols = cols_clusters, pt.size = 0.75) + NoAxes() + NoLegend()
+ggsave(p, filename = paste0(save_path, 'sup1.B.dataset_cluster_with_title.png'), width = 14, height = 3.5)
+
+### extd.fig6.xx.heatmap
+
 h_gene_sets = msigdbr(species = "mouse", category = 'H')
 
-HM_ms_df = data.frame('tmp' = rep(0, length(colnames(so.merged.wo.d))))
-rownames(HM_ms_df) = colnames(so.merged.wo.d)
+HM_ms_df = data.frame('tmp' = rep(0, length(colnames(so))))
+rownames(HM_ms_df) = colnames(so)
 for (hm_gene_set in h_gene_sets[, 'gs_name'] %>% table %>% names) {
-    so.merged.wo.d = AddModuleScore(so.merged.wo.d, features = as.list(subset(h_gene_sets, gs_name == hm_gene_set)[, 'gene_symbol']), name = 'tmp')
-    HM_ms_df[[hm_gene_set]] = so.merged.wo.d[['tmp1']][[1]]
+    so = AddModuleScore(so, features = as.list(subset(h_gene_sets, gs_name == hm_gene_set)[, 'gene_symbol']), name = 'tmp')
+    HM_ms_df[[hm_gene_set]] = so[['tmp1']][[1]]
     print(hm_gene_set)
 }
 HM_ms_df[, 'tmp'] = NULL
 
 resolution = 1
-so.merged.wo.d <- FindClusters(so.merged.wo.d, resolution = resolution)
-
-cluster_list <- split(rownames(so.merged.wo.d[[paste0('RNA_snn_res.', resolution)]]), so.merged.wo.d[[paste0('RNA_snn_res.', resolution)]])
+cluster_list <- split(rownames(so[[paste0('RNA_snn_res.', resolution)]]), so[[paste0('RNA_snn_res.', resolution)]])
 HM_ms_df_mean_by_annotation_cluster <- lapply(cluster_list, function(rows) {
     colMeans(HM_ms_df[rows, , drop=FALSE])
 })
 
-so.merged.wo.d$clusters = paste0('c', so.merged.wo.d[[paste0('RNA_snn_res.', resolution)]][[1]] %>% as.vector)
-
-p <- DimPlot(so.merged.wo.d, group.by = 'clusters', split.by = 'dataset', ncol = 4, pt.size = 1) + theme(plot.title = element_text(size = 0)) + NoLegend() & NoAxes() & theme(strip.text.x = element_text(size = 20, face = "bold"))
-ggsave(p, file = paste0(save_path, 'w_GSE262927_wo_d_dataset.png'), width = 13, height = 4)
-ggsave(p, file = paste0(save_path, 'w_GSE262927_wo_d_dataset.pdf'), width = 13, height = 4)
-
-p <- DimPlot(so.merged.wo.d, group.by = 'clusters', pt.size = 0.4, label = TRUE, label.box = T, label.size = 6, repel = T) & NoAxes()
-ggsave(p, file = paste0(save_path, 'w_GSE262927_wo_d_cluster.png'), width = 6, height = 5)
-ggsave(p, file = paste0(save_path, 'w_GSE262927_wo_d_cluster.pdf'), width = 6, height = 5)
-
 HM_ms_df_mean_by_annotation_cluster %>% as.data.frame -> HM_ms_df_mean_by_annotation_cluster
 colnames(HM_ms_df_mean_by_annotation_cluster) = gsub('X', 'c', colnames(HM_ms_df_mean_by_annotation_cluster))
-Draw_HM_Heatmap(HM_ms_df_mean_by_annotation_cluster, save_path, 'ext.6.e.HM_ms_pheatmap_1.', cutree_col = 4)
 
-### cluster 7, 8, 14, 17 : AT1
-### cluster 6, 16 : tAT2
-### cluster 9 : interfereon-stimulated AT2
-### cluster 12, 13, 15 : proliferating.alv.epi  
-### others : AT2
+rownames(HM_ms_df_mean_by_annotation_cluster) = gsub('HALLMARK_', '', rownames(HM_ms_df_mean_by_annotation_cluster))
 
-so.merged.wo.d$annotation <- 'AT2'
-so.merged.wo.d$annotation[so.merged.wo.d$RNA_snn_res.1 %in% c('7', '8', '14', '17')] <- 'AT1'
-so.merged.wo.d$annotation[so.merged.wo.d$RNA_snn_res.1 %in% c('6', '16')] <- 'tAT2'
-so.merged.wo.d$annotation[so.merged.wo.d$RNA_snn_res.1 %in% c('9')] <- 'interferon-stimulated AT2'
-so.merged.wo.d$annotation[so.merged.wo.d$RNA_snn_res.1 %in% c('12', '13', '15')] <- 'proliferating.alv.epi'
+write.csv(HM_ms_df_mean_by_annotation_cluster, file = paste0(save_path, 'ext.6.e.HM_ms_df_mean_by_annotation_cluster.csv'))
 
-cols.alv.name = c('AT2', 'tAT2', 'interferon-stimulated AT2', 'AT1', 'proliferating.alv.epi')
-cols.alv = c('#8192ef', '#fab76d', '#000000', '#e74c3c', '#6aca71'); names(cols.alv) = cols.alv.name
+annotation_col = data.frame(
+    CellType = c(
+        rep('AT2', 8),  # c2~c5
+        rep('tAT2', 2),                    
+        rep('AT1', 4),                 # c7~c8
+        'IFN.response.alv.epi',       # c9
+        rep('cycling.alv.epi',3)  # c12~c13
+    )
+)
+rownames(annotation_col) = c(paste0('c', c(c(2, 11, 3, 4, 10, 1, 0, 5), c(6, 16), c(7, 8, 14, 17), c(9), c(12, 13, 15))))
 
-p <- DimPlot(so.merged.wo.d, group.by = 'annotation', cols = cols.alv, pt.size = 0.75) & NoAxes()
-ggsave(p, file = paste0(save_path, 'w_GSE262927_w_pro_annotation.png'), width = 8.5, height = 6)
-ggsave(p, file = paste0(save_path, 'w_GSE262927_w_pro_annotation.pdf'), width = 8.5, height = 6)
+ann_colors = list(
+    CellType = c(AT2 = "#8192ef", tAT2 = "#fab76d", AT1 = "#e74c3c", IFN.response.alv.epi = "#000000", cycling.alv.epi = "#8bd690")
+)
 
-so.merged.wo.d$annotation = factor(so.merged.wo.d$annotation, levels = c('AT2', 'tAT2', 'AT1', 'proliferating.alv.epi', 'interferon-stimulated AT2'))
-p <- DotPlot(so.merged.wo.d, features = c('Etv5', 'Abca3', 'Napsa', 'Cldn4', 'Tnip3', 'Krt8', 'Pdpn', 'Aqp5', 'Hopx', 'Top2a', 'Mki67', 'Ifi44', 'Ifit1'), group.by = 'annotation', cols = c('darkgray', 'darkred'))
+library(RColorBrewer)
+my_palette <- rev(colorRampPalette(brewer.pal(11, "RdBu"))(50))
+pheatmap(HM_ms_df_mean_by_annotation_cluster,
+        cluster_rows = TRUE,
+        cluster_cols = TRUE,
+        show_rownames = TRUE,
+        show_colnames = TRUE,
+        fontsize = 15,
+        display_numbers = FALSE,
+        scale = "row",
+        color = my_palette,
+        breaks = seq(-3, 3, length.out = length(my_palette) + 1)
+        # annotation_col = annotation_col,
+        # annotation_colors = ann_colors
+        # breaks = seq(-3, 3, length.out = 100),
+        ) %>% as.ggplot -> p
+ggsave(p, filename = paste0(save_path, 'sup1.C.HM_ms_pheatmap_1.', '_wo_HM.png'), width = 12, height = 11)
+ggsave(p, filename = paste0(save_path, 'sup1.C.HM_ms_pheatmap_1.', '_wo_HM.pdf'), width = 12, height = 11)
+ggplot2pptx(p, 12, 11, paste0(save_path, 'sup1.C.HM_ms_pheatmap_1.', '_wo_HM.pptx'))
+
+### dotplot
+library(RColorBrewer)
+so$clusters <- factor(so$clusters, levels = paste0('c', c(c(0, 1, 2, 3, 4, 5, 10, 11), c(6, 16), c(7, 8, 14, 17), c(12, 13, 15), c(9))))
+p <- DotPlot(so, features = c('Etv5', 'Abca3', 'Napsa', 'Cldn4', 'Tnip3', 'Krt8', 'Pdpn', 'Aqp5', 'Hopx', 'Top2a', 'Mki67', 'Ifi44', 'Iigp1'), group.by = 'clusters')
 p <- p + theme_classic()
 p <- p + theme(axis.text.x = element_text(angle = 90, hjust = 1))
-ggsave(p, file = paste0(save_path, 'w_GSE262927_w_pro_annotation_dotplot.png'), width = 6, height = 5)
-ggsave(p, file = paste0(save_path, 'w_GSE262927_w_pro_annotation_dotplot.pdf'), width = 6, height = 5)
+p <- p + scale_color_gradientn(colors = rev(brewer.pal(9, "RdBu")))
+ggsave(p, file = paste0(save_path, 'sup1.D.w_GSE262927_w_pro_clusters_dotplot.png'), width = 7, height = 5)
+ggsave(p, file = paste0(save_path, 'sup1.D.w_GSE262927_w_pro_clusters_dotplot.pdf'), width = 7, height = 5)
+ggplot2pptx(p, 6, 5, paste0(save_path, 'sup1.D.w_GSE262927_w_pro_clusters_dotplot.pptx'))
 
-saveRDS(so.merged.wo.d, paste0(save_path, 'merged_w_GSE262927_full.rds'))
-
+### celltypist
 library(sceasy)
 library(reticulate)
 use_condaenv('project_lung_exercise_R')
 loompy <- reticulate::import('loompy')
-so.merged.wo.d[["RNA"]] <- as(so.merged.wo.d[["RNA"]], "Assay")
-sceasy::convertFormat(so.merged.wo.d, from="seurat", to="anndata", drop_single_values=FALSE,
-                       outFile= paste0('/home/sjcho/datas/reference_atlas/mouse_lung_alveolar/outs/1.3.a.alveolar_normalization_GSE2632927/','merged_w_GSE262927_full.h5ad'))
+so[["RNA"]] <- as(so[["RNA"]], "Assay")
+sceasy::convertFormat(so, from="seurat", to="anndata", drop_single_values=FALSE,
+                       outFile= paste0('/home/sjcho/datas/reference_atlas/mouse_lung_alveolar/outs/20250217_public_figures/','merged_w_GSE262927_full.h5ad'))
 
-### ext.6.e. (without proliferating)
-p <- fp_sjcho(so.merged.wo.d, features = c('Top2a', 'Mki67'), ncol  = 2, order = T)
-ggsave(p, file = paste0(save_path, 'w_GSE262927_wo_d_proliferating.png'), width = 6, height = 3)
-ggsave(p, file = paste0(save_path, 'w_GSE262927_wo_d_proliferating.pdf'), width = 6, height = 3)
+### MHC2 expression level
+gobp = msigdbr(species = "mouse", category = 'C5')
 
-# for resolution 1, 12, 13, 14 is proliferating
-so.wo.pro <- subset(so.merged.wo.d, cells = Cells(so.merged.wo.d)[so.merged.wo.d$RNA_snn_res.1 %in% c('12', '13', '15')], invert = T)
-so.wo.pro <- log_normalize(so.wo.pro, save_path, 'w_GSE262927_wo_pro', 6, nfeatures = 1000)
+MHC2_geneset = subset(gobp, gs_name == 'GOCC_MHC_CLASS_II_PROTEIN_COMPLEX')$gene_symbol %>% as.vector
+so <- AddModuleScore(so, features = list(MHC2_geneset), name = 'MHC2_geneset')
 
-plot_alveolar_epithelium_features(so.wo.pro, save_path, 'w_GSE262927_wo_pro')
-plot_lineage_features(so.wo.pro, save_path, 'w_GSE262927_wo_pro')
+p <- FeaturePlot(so, features = c('H2-Ab1', 'MHC2_geneset1'), order = T, pt.size = 0.25) & NoAxes()
+p <- p & scale_colour_gradientn(colours = rev(c("#2b0247", "#6800ad","gray90")))
+p <- p & theme(plot.title = element_text(size = 0))
+ggsave(p, filename = paste0(save_path, 'extd.fig6.X.MHC2_geneset.png'), width = 8, height = 4)
 
-p <- fp_sjcho(so.wo.pro, features = c('Pdgfra', 'Ptprc', 'Pecam1', 'Ptprb'), ncol = 2, order = T)
-ggsave(p, file = paste0(save_path, 'w_GSE262927_wo_pro_featureplot.png'), width = 7, height = 6)
+p <- StackedVlnPlot(so, features = c('H2-Ab1', 'MHC2_geneset1'), group.by = 'clusters', cols = cols_clusters, pt.size = 0) 
+p <- p & NoLegend() & geom_boxplot(fill = 'white', width = 0.2, outlier.size = 0.5)
+p <- p & theme(axis.text.x = element_text(angle = 90, hjust = 1))
+ggsave(p, filename = paste0(save_path, 'sup1.E.MHC2_geneset_vlnplot.png'), width = 9, height = 6)
+ggsave(p, filename = paste0(save_path, 'sup1.E.MHC2_geneset_vlnplot.pdf'), width = 9, height = 6)
+ggplot2pptx(p, 9, 6, paste0(save_path, 'sup1.E.MHC2_geneset_vlnplot.pptx'))
 
-so.wo.pro$log10UMI <- log10(1 + so.wo.pro$nCount_RNA)
-so.wo.pro[["percent.mt"]] <- PercentageFeatureSet(so.wo.pro, pattern = "^mt-")
-p <- fp_sjcho(so.wo.pro, features = c('log10UMI', 'nFeature_RNA', 'percent.mt'), ncol = 2, order = T)
-ggsave(p, file = paste0(save_path, 'w_GSE262927_wo_pro_tech.png'), width = 7, height = 6)
+### UMAP split.by damage type
+so$injury_type[so$dpi == '0'] = 'No Damage'
+so$injury_type[so$injury_type == 'H1N1_PR8'] = 'H1N1'
+so$injury_type = factor(so$injury_type, levels = c('No Damage', 'H1N1', 'bleomycin'))
 
-p <- DimPlot(so.wo.pro, group.by = 'original_annotation', label = T, repel = T) & NoAxes()
-ggsave(p, file = paste0(save_path, 'w_GSE262927_wo_pro_original_annotation.png'), width = 7, height = 6)
+p <- DimPlot(so, group.by = 'clusters', split.by = 'injury_type', cols = cols_clusters, pt.size = 0.5, ncol = 3) & NoAxes() & NoLegend() & theme(plot.title = element_text(size = 0))
+p <- p & theme(strip.text.x = element_text(size = 0, face = "bold"))
+ggsave(p, filename = paste0(save_path, 'sup1.B.injury_type.png'), width = 9, height = 3)
+ggsave(p, filename = paste0(save_path, 'sup1.B.injury_type.pdf'), width = 9, height = 3)
+ggplot2pptx(p, 6, 6, paste0(save_path, 'sup1.B.injury_type.pptx'))
 
-HM_ms_df = data.frame('tmp' = rep(0, length(colnames(so.wo.pro))))
-rownames(HM_ms_df) = colnames(so.wo.pro)
-for (hm_gene_set in h_gene_sets[, 'gs_name'] %>% table %>% names) {
-    so.wo.pro = AddModuleScore(so.wo.pro, features = as.list(subset(h_gene_sets, gs_name == hm_gene_set)[, 'gene_symbol']), name = 'tmp')
-    HM_ms_df[[hm_gene_set]] = so.wo.pro[['tmp1']][[1]]
-    print(hm_gene_set)
+### markers
+so <- readRDS('/home/sjcho/datas/reference_atlas/mouse_lung_alveolar/outs/20250217_public_figures/merged_w_GSE262927_full.rds')
+Idents(so) <- so$annotation
+
+for (celltype in unique(so$annotation)) {
+    marker <- FindMarkers(so, ident.1 = celltype, min.pct = 0, logfc.threshold = 0, test.use = 'MAST', latet.var = 'dataset')
+    save(marker, file = paste0('/home/sjcho/datas/reference_atlas/mouse_lung_alveolar/outs/20250217_public_figures/markers/', celltype, '_marker.RData'))
+} 
+
+AT2_markers <- FindMarkers(so, ident.1 = 'AT2', min.pct = 0, logfc.threshold = 0, test.use = 'MAST', latet.var = c('dataset', 'injury_type'))
+save(AT2_markers, file = paste0('/home/sjcho/datas/reference_atlas/mouse_lung_alveolar/outs/20250217_public_figures/markers/AT2_marker.RData'))
+
+AT2_uninjuryed_markers <- FindMarkers(so, ident.1 = Cells(so)[so$annotation == 'AT2' & so$injury_type == 'No Damage'], 
+                                        ident.2 = Cells(so)[so$annotation %in% c('AT1', 'tAT2') & so$injury_type == 'No Damage'], 
+                                        min.pct = 0, logfc.threshold = 0, test.use = 'MAST', latet.var = c('dataset', 'injury_type'))
+save(AT2_uninjuryed_markers, file = paste0('/home/sjcho/datas/reference_atlas/mouse_lung_alveolar/outs/20250217_public_figures/markers/AT2_uninjury_marker.RData'))
+
+
+so <- AddModuleScore(so, features = list(subset(AT2_markers, avg_log2FC > 1 & p_val_adj < 0.05 & pct.1 > 0.3) %>% rownames), name = 'AT2_marker')
+p <- fp_sjcho(so, features = c('AT2_marker1'), order = T, pt.size = 0.25, ncol = 1) & NoAxes()
+# p <- p & scale_colour_gradientn(colours = rev(c("#2b0247", "#6800ad","gray90")))
+p <- p & theme(plot.title = element_text(size = 0))
+ggsave(p, filename = paste0(save_path, 'extd.fig6.X.AT2_marker.png'), width = 5, height = 4)
+
+so$annotation_injury = paste0(so$annotation, '_', so$injury_type)
+p <- VlnPlot(so, features = 'Il33', group.by = 'annotation_injury', pt.size = 0, cols = rep('darkgray', length(unique(so$annotation_injury)))) + geom_boxplot(fill = 'white', width = 0.2)
+p <- p + NoLegend()
+ggsave(p, filename = paste0(save_path, 'extd.fig6.X.Il33_vlnplot.png'), width = 8, height = 4)
+
+save_path = '/home/sjcho/datas/reference_atlas/mouse_lung_alveolar/outs/20250217_public_figures/AT2_marker_test/'
+for (gene in (subset(AT2_markers, avg_log2FC > 1 & p_val_adj < 0.05 & pct.1 > 0.3) %>% rownames)) {
+    p <- VlnPlot(so, features = gene, group.by = 'annotation_injury', pt.size = 0, cols = rep('darkgray', length(unique(so$annotation_injury)))) + geom_boxplot(fill = 'white', width = 0.2)
+    p <- p + NoLegend()
+    ggsave(p, filename = paste0(save_path, 'extd.fig6.X.', gene, '_vlnplot.png'), width = 8, height = 4)
 }
-HM_ms_df[, 'tmp'] = NULL
-
-resolution = 1
-so.wo.pro <- FindClusters(so.wo.pro, resolution = resolution)
-
-cluster_list <- split(rownames(so.wo.pro[[paste0('RNA_snn_res.', resolution)]]), so.wo.pro[[paste0('RNA_snn_res.', resolution)]])
-HM_ms_df_mean_by_annotation_cluster <- lapply(cluster_list, function(rows) {
-    colMeans(HM_ms_df[rows, , drop=FALSE])
-})
-p <- DimPlot(so.wo.pro, group.by = paste0('RNA_snn_res.', resolution), split.by = 'dataset', ncol = 4, pt.size = 1) + theme(plot.title = element_text(size = 0)) + NoLegend() & NoAxes() & theme(strip.text.x = element_text(size = 20, face = "bold"))
-ggsave(p, file = paste0(save_path, 'w_GSE262927_wo_pro_dataset.png'), width = 13, height = 3)
-ggsave(p, file = paste0(save_path, 'w_GSE262927_wo_pro_dataset.pdf'), width = 13, height = 3)
-
-p <- DimPlot(so.wo.pro, group.by = paste0('RNA_snn_res.', resolution), pt.size = 0.75, label = TRUE, label.size = 5, label.box = TRUE, repel = T) & NoAxes()
-ggsave(p, file = paste0(save_path, 'w_GSE262927_wo_pro_cluster.png'), width = 7, height = 6)
-ggsave(p, file = paste0(save_path, 'w_GSE262927_wo_pro_cluster.pdf'), width = 7, height = 6)
-
-HM_ms_df_mean_by_annotation_cluster %>% as.data.frame -> HM_ms_df_mean_by_annotation_cluster
-Draw_HM_Heatmap(HM_ms_df_mean_by_annotation_cluster, save_path, 'ext.6.e.HM_ms_pheatmap_wo_pro_')
-
-fastmarker10 <- FindMarkers(so.wo.pro, ident.1 = '10', min.pct = 0.25, logfc.threshold = 0.25, only.pos = T)
-
-p <- fp_sjcho(so.wo.pro, features = c('Ifi44', 'Ifit1', 'Ifi27l2a', 'Irf7'), ncol = 2, order = T)
-ggsave(p, file = paste0(save_path, 'w_GSE262927_wo_pro_Interferon.png'), width = 8, height = 7)
-
-### cluster 7, 8, 14 : AT1
-### cluster 4 : tAT2
-### cluster 10 : interfereon-stimulated AT2
-### others : AT2
-
-so.wo.pro$annotation <- 'AT2'
-so.wo.pro$annotation[so.wo.pro$RNA_snn_res.1 %in% c('7', '8', '14')] <- 'AT1'
-so.wo.pro$annotation[so.wo.pro$RNA_snn_res.1 %in% c('4')] <- 'tAT2'
-so.wo.pro$annotation[so.wo.pro$RNA_snn_res.1 %in% c('10')] <- 'interferon-stimulated AT2'
-
-so.merged.wo.d$annotation <- 'proliferating.alv.epi'
-so.merged.wo.d$annotation[Cells(so.wo.pro)] <- so.wo.pro$annotation
-
-cols.alv.name = c('AT2', 'tAT2', 'interferon-stimulated AT2', 'AT1', 'proliferating.alv.epi')
-cols.alv = c('#8192ef', '#fab76d', '#000000', '#e74c3c', '#cfb2e2'); names(cols.alv) = cols.alv.name
-
-p <- DimPlot(so.merged.wo.d, group.by = 'annotation', cols = cols.alv) & NoAxes()
-ggsave(p, file = paste0(save_path, 'w_GSE262927_w_pro_annotation.png'), width = 8, height = 6)
-ggsave(p, file = paste0(save_path, 'w_GSE262927_w_pro_annotation.pdf'), width = 8, height = 6)
-
-### MHC2 level
-GOBP_gene_sets = msigdbr(species = "mouse", category = 'C5')
-GOBP_gene_sets = subset(GOBP_gene_sets, gs_subcat == 'GO:BP')
-
-gs_names = unique(GOBP_gene_sets$gs_name)
-MHC2_gs = gs_names[grep('MHC_CLASS_II', gs_names)]
-MHC1_gs = gs_names[grep('MHC_CLASS_I', gs_names)]
-MHC1_gs = setdiff(MHC1_gs, MHC2_gs)
-
-for (gs in MHC2_gs) {
-    print(gs)
-    print(subset(GOBP_gene_sets, gs_name == gs)$gene_symbol)
-    so.wo.pro <- AddModuleScore(so.wo.pro, features = list(subset(GOBP_gene_sets, gs_name == gs)$gene_symbol), name = gs)
-}
-
-p <- fp_sjcho(so.wo.pro, features = paste0('GOBP_NEGATIVE_REGULATION_OF_MHC_CLASS_II_BIOSYNTHETIC_PROCESS', 1), ncol = 1, order = T)
-ggsave(p & theme(title = element_text(size = 0)), file = paste0(save_path, 'MHC2_modules.png'), width = 6, height = 4)
-p <- fp_sjcho(so.wo.pro, features = 'H2-Ab1', ncol = 1, order = F) + NoAxes()
-ggsave(p, file = paste0(save_path, 'MHC2_Ab1.png'), width = 5, height = 4)
-ggsave(p, file = paste0(save_path, 'MHC2_Ab1.pdf'), width = 5, height = 4)
-
-p <- fp_sjcho(so.wo.pro, features = 'H2-Ab1', ncol = 3, split.by = 'damage_type', order = T)
-ggsave(p & NoAxes(), file = paste0(save_path, 'MHC2_Ab1_damage.png'), width = 15, height = 4)
-ggsave(p & NoAxes(), file = paste0(save_path, 'MHC2_Ab1_damage.pdf'), width = 15, height = 4)
-
-so[['damage_annotation']] <- paste0(so[['damage_type']][[1]], '_', so[['annotation']][[1]])
-level_order = c()
-for(celltype in c('AT2', 'pAT2', 'early tAT2', 'inflamed tAT2', 'lineage-defined tAT2', 'AT1')) {
-    for(damage in c('NoDamage', 'Bleomycin', 'H1N1')) {
-        level_order = c(level_order, paste0(damage, '_', celltype))
-    }
-}
-so@meta.data[, 'damage_annotation'] <- factor(so[['damage_annotation']][[1]], 
-                                    levels = level_order)
-
-cols_triple =c()
-for (col in alv_cols[c('AT2', 'pAT2', 'early tAT2', 'inflamed tAT2', 'lineage-defined tAT2', 'AT1')]) {
-    cols_triple = c(cols_triple, rep(col, 3))
-}
-
-names(cols_triple) = level_order
-p <- VlnPlot(so, features = 'H2-Ab1', group.by = 'damage_annotation', cols = cols_triple, pt.size = 0) + geom_boxplot(position=position_dodge(1), fill = 'white', width = 0.2) + NoLegend()
-ggsave(p, file = paste0(save_path, 'H2-Ab1_violin_damage.png'), width = 14, height = 4)
-ggsave(p, file = paste0(save_path, 'H2-Ab1_violin_damage.pdf'), width = 14, height = 4)
-
-### is there sox9 and col14a1 co-expressed cells?
