@@ -12,7 +12,7 @@ library(DropletUtils)
 library(harmony)
 library(pheatmap)
 
-source('/home/sjcho/datas/reference_atlas/mouse_lung_alveolar/scripts/utils.R')
+source('/home/sjcho/datas/reference_atlas/mouse_lung_alveolar/scripts/utils_for_MAER.R')
 source('/home/sjcho/yard/functions/R/seurat_count_to_normalization.R')
 source('/home/sjcho/yard/functions/R/FeaturePlot_sjcho.R')
 source('/home/sjcho/yard/functions/R/save_ggplot2_to_ppt.R')
