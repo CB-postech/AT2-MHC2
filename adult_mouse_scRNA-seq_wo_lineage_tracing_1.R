@@ -32,7 +32,6 @@ source('/home/sjcho/projects/AT2_MHC2/20241113_after_cellbender/5.cellrank2/util
 save_path = '/home/sjcho/projects/AT2_MHC2/20241113_after_cellbender/manuscript_figures/figure4/figure4_more_visually_intuitive_outs/'
 so.alv <- readRDS('/home/sjcho/projects/AT2_MHC2/20241113_after_cellbender/3.whole_cell_annotation/outs/3.1.epithelial_annotation/alv_annotation.rds')
 
-
 so.alv$condition_dpi = factor(so.alv$condition_dpi, levels = c('naive_floxed', '7dpi_floxed', '14dpi_floxed', '30dpi_floxed', 
                                                                 'naive_dAT2', '7dpi_dAT2', '14dpi_dAT2', '30dpi_dAT2'))
 
